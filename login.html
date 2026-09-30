@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentinel NIDS // Real-Time Perimeter Access</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(circle at center, #111a2e 0%, #0a0e17 100%);
+      padding: 20px;
+    }
+    .auth-container {
+      width: 100%;
+      max-width: 480px;
+      background: #151f32;
+      border: 1px solid #243452;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    .auth-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .auth-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: 1px;
+    }
+    .auth-desc {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: #0a0e17;
+      border: 1px solid #243452;
+      border-radius: 6px;
+      color: #f8fafc;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus {
+      border-color: #38bdf8;
+    }
+    .permission-box {
+      background: #0d1424;
+      border: 1px solid #243452;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .permission-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .permission-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #94a3b8;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .permission-item:last-child {
+      border-bottom: none;
+    }
+    .btn-verify {
+      width: 100%;
+      padding: 12px;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-verify:hover {
+      background: #2563eb;
+    }
+    .btn-verify:disabled {
+      background: #334155;
+      cursor: not-allowed;
+    }
+    .status-msg {
+      margin-top: 14px;
+      font-size: 12px;
+      padding: 10px;
+      border-radius: 6px;
+      display: none;
+      font-family: monospace;
+    }
+    .status-msg.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+    .status-msg.success {
+      display: block;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+    .otp-row {
+      display: none;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-header">
+      <div class="auth-title">SENTINEL NIDS LOGIN</div>
+      <div class="auth-desc">Zero-Trust Real-Time Identity & Device Geolocation Verification</div>
+    </div>
+
+    <!-- Required Hardware Device Permissions -->
+    <div class="permission-box">
+      <div class="permission-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        Mandatory Real-Time Device Permissions
+      </div>
+      <div class="permission-item">
+        <span>Device Physical Geolocation</span>
+        <span id="geoStatus" style="color: #fbbf24; font-weight: 600;">Pending Access</span>
+      </div>
+      <div class="permission-item">
+        <span>Desktop Security Alerts</span>
+        <span id="notifStatus" style="color: #fbbf24; font-weight: 600;">Pending Access</span>
+      </div>
+    </div>
+
+    <!-- User Email Input (Blank by default - no hardcoded/default data) -->
+    <div class="form-group">
+      <label class="form-label" for="userEmail">Administrator Gmail / Work Email</label>
+      <input type="email" id="userEmail" class="form-input" placeholder="Enter your email address" autocomplete="off" required>
+    </div>
+
+    <button type="button" id="btnRequestOtp" class="btn-verify">Request Device Permission & Send OTP</button>
+
+    <!-- Real-time OTP Verification Input (Revealed after code dispatch) -->
+    <div class="otp-row" id="otpSection">
+      <div class="form-group" style="margin-top: 16px;">
+        <label class="form-label" for="otpInput">Enter 6-Digit Verification Code</label>
+        <input type="text" id="otpInput" class="form-input" placeholder="000000" maxlength="6" style="letter-spacing: 6px; font-size: 18px; text-align: center;" autocomplete="off">
+      </div>
+      <button type="button" id="btnConfirmOtp" class="btn-verify" style="background: #10b981;">Verify Real-Time Identity & Enter SOC</button>
+    </div>
+
+    <div id="statusMessage" class="status-msg"></div>
+  </div>
+
+  <script>
+    let deviceTelemetry = {
+      geo_permission: false,
+      notification_permission: false,
+      coordinates: {},
+      user_agent: navigator.userAgent,
+      platform: navigator.platform
+    };
+
+    const userEmailInput = document.getElementById("userEmail");
+    const btnRequestOtp = document.getElementById("btnRequestOtp");
+    const otpSection = document.getElementById("otpSection");
+    const otpInput = document.getElementById("otpInput");
+    const btnConfirmOtp = document.getElementById("btnConfirmOtp");
+    const statusMessage = document.getElementById("statusMessage");
+    const geoStatus = document.getElementById("geoStatus");
+    const notifStatus = document.getElementById("notifStatus");
+
+    // Request browser permissions dynamically
+    async function acquireDevicePermissions() {
+      // 1. Notification permission
+      if ("Notification" in window) {
+        const notifPerm = await Notification.requestPermission();
+        if (notifPerm === "granted") {
+          deviceTelemetry.notification_permission = true;
+          notifStatus.textContent = "Granted";
+          notifStatus.style.color = "#34d399";
+        } else {
+          notifStatus.textContent = "Denied";
+          notifStatus.style.color = "#f87171";
+        }
+      }
+
+      // 2. Geolocation permission
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          geoStatus.textContent = "Unsupported";
+          geoStatus.style.color = "#f87171";
+          resolve(false);
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            deviceTelemetry.geo_permission = true;
+            deviceTelemetry.coordinates = {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy
+            };
+            geoStatus.textContent = `Locked (${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)})`;
+            geoStatus.style.color = "#34d399";
+            resolve(true);
+          },
+          (err) => {
+            deviceTelemetry.geo_permission = false;
+            geoStatus.textContent = "Access Denied";
+            geoStatus.style.color = "#f87171";
+            resolve(false);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    }
+
+    btnRequestOtp.addEventListener("click", async () => {
+      const email = userEmailInput.value.trim();
+      if (!email || !email.includes("@")) {
+        showStatus("Please enter a valid email address.", "error");
+        return;
+      }
+
+      showStatus("Requesting hardware device permissions...", "success");
+      const geoGranted = await acquireDevicePermissions();
+
+      if (!geoGranted) {
+        showStatus("Real-time physical Geolocation permission is mandatory for Sentinel zero-trust authentication.", "error");
+        return;
+      }
+
+      btnRequestOtp.disabled = true;
+      btnRequestOtp.textContent = "Sending Real-Time Code...";
+
+      try {
+        const res = await fetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showStatus(data.message || `Live verification code sent to ${email}`, "success");
+          otpSection.style.display = "block";
+          btnRequestOtp.style.display = "none";
+          userEmailInput.disabled = true;
+        } else {
+          showStatus(data.error || "Failed to dispatch verification code.", "error");
+          btnRequestOtp.disabled = false;
+          btnRequestOtp.textContent = "Request Device Permission & Send OTP";
+        }
+      } catch (err) {
+        showStatus("Network error connecting to Sentinel authentication server.", "error");
+        btnRequestOtp.disabled = false;
+        btnRequestOtp.textContent = "Request Device Permission & Send OTP";
+      }
+    });
+
+    btnConfirmOtp.addEventListener("click", async () => {
+      const email = userEmailInput.value.trim();
+      const code = otpInput.value.trim();
+
+      if (!code || code.length !== 6) {
+        showStatus("Please enter the 6-digit verification code received in your email.", "error");
+        return;
+      }
+
+      btnConfirmOtp.disabled = true;
+      btnConfirmOtp.textContent = "Verifying Identity...";
+
+      try {
+        const res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: email,
+            otp: code,
+            device_telemetry: deviceTelemetry
+          })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showStatus("Identity & Device verified. Redirecting to real-time SOC...", "success");
+          sessionStorage.setItem("sentinel_token", data.session_token);
+          sessionStorage.setItem("sentinel_user", email);
+          sessionStorage.setItem("sentinel_device", JSON.stringify(data.device));
+          setTimeout(() => {
+            window.location.href = "/dashboard";
+          }, 1200);
+        } else {
+          showStatus(data.error || "Verification failed.", "error");
+          btnConfirmOtp.disabled = false;
+          btnConfirmOtp.textContent = "Verify Real-Time Identity & Enter SOC";
+        }
+      } catch (err) {
+        showStatus("Verification server communication error.", "error");
+        btnConfirmOtp.disabled = false;
+        btnConfirmOtp.textContent = "Verify Real-Time Identity & Enter SOC";
+      }
+    });
+
+    function showStatus(msg, type) {
+      statusMessage.textContent = msg;
+      statusMessage.className = `status-msg ${type}`;
+    }
+  </script>
+</body>
+</html>

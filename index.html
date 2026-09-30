@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SENTINEL // MLDL Network Intrusion Detection System</title>
+  
+  <!-- Leaflet CSS for Global Geo-tagging Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Cyber SOC Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Chart.js for Live Analytics Canvas -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Top SOC Header -->
+  <header class="soc-header">
+    <div class="brand-container">
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">SENTINEL MLDL-IDS</div>
+        <div class="brand-subtitle" id="activeUserBadge">Admin: Verifying Session...</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="view-tabs">
+      <button class="tab-btn active" data-tab="operations">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
+        </svg>
+        Live SOC Operations
+      </button>
+      <button class="tab-btn" data-tab="powerbi">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        Real-Time Threat Analytics
+      </button>
+      <button class="tab-btn" id="btnLogout" style="color: #f87171;">
+        Logout
+      </button>
+    </div>
+
+    <!-- System Status Badges -->
+    <div class="system-status-badges">
+      <div class="status-badge">
+        <span class="indicator-dot online"></span>
+        <span>PyTorch Engine: Active</span>
+      </div>
+      <div class="status-badge">
+        <span class="indicator-dot online"></span>
+        <span id="deviceGeoBadge">GPS: Locked</span>
+      </div>
+      <div class="status-badge" style="background: rgba(14, 165, 233, 0.15); border-color: rgba(14, 165, 233, 0.4);">
+        <span id="liveClock" style="color: #38bdf8; font-weight: bold;">--:--:-- UTC</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live KPI Banner (Zero Default Data - strictly dynamic) -->
+  <section class="kpi-container">
+    <div class="kpi-card" style="--card-accent: #38bdf8;">
+      <div class="kpi-label">Total Flow Inspections</div>
+      <div class="kpi-value" id="kpiTotal">0</div>
+      <div class="kpi-sub">Live packet telemetry</div>
+    </div>
+    <div class="kpi-card" style="--card-accent: #10b981;">
+      <div class="kpi-label">Authorized Normal Users</div>
+      <div class="kpi-value" id="kpiNormal" style="color: #34d399;">0</div>
+      <div class="kpi-sub">Verified benign traffic</div>
+    </div>
+    <div class="kpi-card" style="--card-accent: #ef4444;">
+      <div class="kpi-label">Blocked Malicious Hackers</div>
+      <div class="kpi-value" id="kpiHackers" style="color: #f87171;">0</div>
+      <div class="kpi-sub">Flagged by PyTorch dual-head model</div>
+    </div>
+    <div class="kpi-card" style="--card-accent: #f59e0b;">
+      <div class="kpi-label">Port Scans Detected</div>
+      <div class="kpi-value" id="kpiPortScan" style="color: #fbbf24;">0</div>
+      <div class="kpi-sub">Port entropy & SYN sweeps</div>
+    </div>
+    <div class="kpi-card" style="--card-accent: #f97316;">
+      <div class="kpi-label">Brute Force Incidents</div>
+      <div class="kpi-value" id="kpiBruteForce" style="color: #fb923c;">0</div>
+      <div class="kpi-sub">Auth failure credential storms</div>
+    </div>
+    <div class="kpi-card" style="--card-accent: #8b5cf6;">
+      <div class="kpi-label">Automated Mitigations</div>
+      <div class="kpi-value" id="kpiMitigations" style="color: #c084fc;">0</div>
+      <div class="kpi-sub">Perimeter firewall block rules</div>
+    </div>
+  </section>
+
+  <!-- Main View 1: Live Operations -->
+  <main class="main-content" id="operationsView">
+    <div class="grid-two-col">
+      
+      <!-- Left Column: Global Threat Map & Real-time Live Packet Ingestion -->
+      <section class="soc-card">
+        <div class="soc-card-header">
+          <div class="card-title-group">
+            <span class="card-title">Live Global Threat & Terminal Geo-Map</span>
+            <span class="card-tag">Hardware GPS Integrated</span>
+          </div>
+          <span style="font-size: 11px; color: var(--text-secondary);">Real-Time IP Geolocation</span>
+        </div>
+        <div class="soc-card-body">
+          <div id="threatMap"></div>
+
+          <!-- Live Network Packet Ingestion Console (Real Data Only) -->
+          <div style="margin-top: 16px; background: #0c1424; border: 1px solid var(--border-color); border-radius: 8px; padding: 14px;">
+            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; text-transform: uppercase; margin-bottom: 8px;">
+              Live Real-Time Packet Flow Ingestion
+            </div>
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+              <input type="text" id="liveSrcIp" class="form-input" placeholder="Origin IP (e.g. 185.220.101.5)" style="padding: 8px; font-size: 12px;">
+              <input type="number" id="liveDstPort" class="form-input" placeholder="Dst Port (e.g. 22)" style="padding: 8px; font-size: 12px;">
+              <input type="number" id="liveEntropy" class="form-input" placeholder="Port Entropy (0.0 - 1.0)" step="0.01" style="padding: 8px; font-size: 12px;">
+              <input type="number" id="liveFailedLogins" class="form-input" placeholder="Failed Logins (e.g. 0)" style="padding: 8px; font-size: 12px;">
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary" id="btnIngestRealFlow" style="flex: 1;">
+                 Analyze & Ingest Live Flow
+              </button>
+              <button class="btn btn-warning" id="btnCapturePcap" style="flex: 1;">
+                 Live Interface Packet Sniff (Eth0)
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Deep Learning Intelligence & Emergency Sequences -->
+      <section class="soc-card">
+        <div class="soc-card-header">
+          <div class="card-title-group">
+            <span class="card-title">PyTorch ML/DL Decision Intelligence</span>
+            <span class="card-tag">Dual-Head Neural Model</span>
+          </div>
+          <span style="font-size: 11px; color: var(--accent-cyan);" id="liveInferenceLatency">Latency: -- ms</span>
+        </div>
+        <div class="soc-card-body">
+          
+          <!-- Detection Result Box -->
+          <div class="detection-result-box">
+            <div class="status-callout normal" id="statusCallout">
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted);">CLASSIFICATION VERDICT</div>
+                <div class="threat-identity" id="threatIdentity" style="color: #10b981;">AWAITING FIRST PACKET INGESTION</div>
+              </div>
+              <span class="badge-pill benign" id="threatSeverityBadge">IDLE</span>
+            </div>
+
+            <div class="threat-meta-grid">
+              <div class="threat-meta-item">
+                <div class="meta-title">Origin IP & Geolocation</div>
+                <div class="meta-val" id="detSrcIp">--</div>
+                <div style="font-size: 11px; color: var(--text-muted);" id="detGeo">--</div>
+              </div>
+              <div class="threat-meta-item">
+                <div class="meta-title">ML Model Confidence</div>
+                <div class="meta-val" id="detConfidence" style="color: #38bdf8;">--%</div>
+                <div style="font-size: 10px; color: var(--text-muted);" id="detModel">SentinelNeuralIDS</div>
+              </div>
+            </div>
+
+            <!-- Softmax Multiclass Attack Probabilities -->
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">
+              Live Class Probability Distribution
+            </div>
+            <div id="classProbBars">
+              <div style="color: #64748b; font-size: 11px; text-align: center; padding: 10px;">No active classification data.</div>
+            </div>
+
+            <!-- Forensic Indicators -->
+            <div style="margin-top: 14px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px;">
+              <div style="font-size: 11px; font-weight: 600; color: #38bdf8; margin-bottom: 4px;">Forensic Saliency Signatures:</div>
+              <ul id="indicatorsList" style="padding-left: 18px; font-size: 12px; color: #cbd5e1;">
+                <li>Ready to evaluate live ingress network flows.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Real-Time Emergency Notification & Calling Log Console -->
+          <div style="margin-top: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; font-weight: 700; color: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px;">
+                Admin Threat Mitigation & Calling Sequence
+              </span>
+              <span style="font-size: 10px; color: #10b981; font-family: var(--font-mono);">REAL-TIME CHANNEL</span>
+            </div>
+            <div class="alert-console" id="alertConsole">
+              <div class="console-entry">
+                <span class="console-time">[READY]</span>
+                <span class="console-type mitigate">[SYSTEM]</span>
+                <span>Sentinel Real-Time Defense listening. No simulated alerts present.</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Bottom Section: Real-Time Incident Stream (Starts Empty) -->
+    <section class="soc-card" style="margin-top: 20px;">
+      <div class="soc-card-header">
+        <div class="card-title-group">
+          <span class="card-title">Live Real-Time Flow & Incident Stream</span>
+          <span class="card-tag">Live Feed</span>
+        </div>
+        <span style="font-size: 11px; color: var(--text-muted);">Real-time stream (0 default rows)</span>
+      </div>
+      <div class="soc-card-body" style="padding: 0; overflow-x: auto;">
+        <table class="soc-table">
+          <thead>
+            <tr>
+              <th>Timestamp (UTC)</th>
+              <th>Attacker / User IP</th>
+              <th>Geo Origin</th>
+              <th>Attack Signature</th>
+              <th>Severity</th>
+              <th>Confidence</th>
+              <th>Mitigation Action</th>
+            </tr>
+          </thead>
+          <tbody id="incidentTableBody">
+            <tr id="emptyTableRow">
+              <td colspan="7" style="text-align: center; color: #64748b; padding: 24px;">
+                No flows ingested yet. Ingest a live network packet flow above to evaluate in real time.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Main View 2: Power BI Threat Analytics View -->
+  <main class="main-content powerbi-view" id="powerbiView">
+    <div class="pbi-frame-container">
+      <div class="pbi-header">
+        <div>
+          <h2 style="font-size: 18px; font-weight: 700; color: #f8fafc; margin-bottom: 4px;">
+            Real-Time Threat Analytics Dashboard
+          </h2>
+          <div style="font-size: 12px; color: var(--text-secondary);">
+            Dynamic telemetry from live verified ingress flows. Zero static/default data points.
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Visual Analytics Grid -->
+      <div class="pbi-charts-grid">
+        <div class="chart-box">
+          <div style="font-size: 13px; font-weight: 600; color: #f8fafc; margin-bottom: 10px;">
+            Real-Time Ingestion Timeline (Normal vs Attacks)
+          </div>
+          <div style="position: relative; height: 210px;">
+            <canvas id="pbiTrendChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div style="font-size: 13px; font-weight: 600; color: #f8fafc; margin-bottom: 10px;">
+            Live Geographic Attack Distribution
+          </div>
+          <div style="position: relative; height: 210px;">
+            <canvas id="pbiOriginChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div style="font-size: 13px; font-weight: 600; color: #f8fafc; margin-bottom: 10px;">
+            Targeted Ports Distribution
+          </div>
+          <div style="position: relative; height: 210px;">
+            <canvas id="pbiPortChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <div style="font-size: 13px; font-weight: 600; color: #f8fafc; margin-bottom: 10px;">
+            Live PyTorch Inference Time (ms)
+          </div>
+          <div style="position: relative; height: 210px;">
+            <canvas id="pbiMttdChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
